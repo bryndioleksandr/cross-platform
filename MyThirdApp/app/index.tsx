@@ -1,41 +1,72 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, TextInput, TouchableOpacity, FlatList, Keyboard } from 'react-native';
+import { StyleSheet, Text, View, TextInput, TouchableOpacity, FlatList, Keyboard, ActivityIndicator } from 'react-native';
 import * as SQLite from 'expo-sqlite';
 
-const db = SQLite.openDatabaseSync('todo_db');
-
 export default function Index() {
+    const [db, setDb] = useState<SQLite.SQLiteDatabase | null>(null);
     const [task, setTask] = useState('');
     const [taskList, setTaskList] = useState<any[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        db.execSync(`
-      CREATE TABLE IF NOT EXISTS tasks (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT);
-    `);
-        fetchTasks();
+        async function setupDatabase() {
+            try {
+                const database = await SQLite.openDatabaseAsync('todo_db');
+                setDb(database);
+
+                // Створюємо таблицю
+                await database.execAsync(`
+          CREATE TABLE IF NOT EXISTS tasks (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT);
+        `);
+
+                // Завантажуємо дані
+                const allRows = await database.getAllAsync('SELECT * FROM tasks');
+                setTaskList(allRows);
+            } catch (error) {
+                console.error("Помилка БД:", error);
+            } finally {
+                setIsLoading(false);
+            }
+        }
+
+        setupDatabase();
     }, []);
 
-    const fetchTasks = () => {
-        const allRows = db.getAllSync('SELECT * FROM tasks');
+    const fetchTasks = async () => {
+        if (!db) return;
+        const allRows = await db.getAllAsync('SELECT * FROM tasks');
         setTaskList(allRows);
     };
 
-    const addTask = () => {
-        if (task.trim().length === 0) return;
-        db.runSync('INSERT INTO tasks (title) VALUES (?)', [task]);
-        setTask('');
-        Keyboard.dismiss();
-        fetchTasks();
+    const addTask = async () => {
+        if (task.trim().length === 0 || !db) return;
+        try {
+            await db.runAsync('INSERT INTO tasks (title) VALUES (?)', [task]);
+            setTask('');
+            Keyboard.dismiss();
+            await fetchTasks();
+        } catch (error) {
+            console.error("Не вдалося додати:", error);
+        }
     };
 
-    const deleteTask = (id: number) => {
-        db.runSync('DELETE FROM tasks WHERE id = ?', [id]);
-        fetchTasks();
+    const deleteTask = async (id: number) => {
+        if (!db) return;
+        try {
+            await db.runAsync('DELETE FROM tasks WHERE id = ?', [id]);
+            await fetchTasks();
+        } catch (error) {
+            console.error("Не вдалося видалити:", error);
+        }
     };
+
+    if (isLoading) {
+        return <View style={styles.center}><ActivityIndicator size="large" color="#007AFF" /></View>;
+    }
 
     return (
         <View style={styles.container}>
-            <Text style={styles.title}>Мій To-Do (Варіант 2)</Text>
+            <Text style={styles.title}>Мій To-Do (Async)</Text>
 
             <View style={styles.inputContainer}>
                 <TextInput
@@ -67,6 +98,7 @@ export default function Index() {
 
 const styles = StyleSheet.create({
     container: { flex: 1, padding: 40, paddingTop: 60, backgroundColor: '#fff' },
+    center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
     title: { fontSize: 24, fontWeight: 'bold', marginBottom: 20, textAlign: 'center' },
     inputContainer: { flexDirection: 'row', marginBottom: 20 },
     input: { flex: 1, borderBottomWidth: 1, marginRight: 10, padding: 5 },
