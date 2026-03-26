@@ -1,0 +1,18 @@
+{
+  "expo": {
+    "name": "ReleaseApp",
+    "slug": "ReleaseApp",
+    "version": "1.0.0",
+    "android": {
+      "package": "com.byrndio_reserve.ReleaseApp"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "98513996-0779-4aa2-9826-6b5f1e1a2047"
+      }
+    }
+  }
+}
